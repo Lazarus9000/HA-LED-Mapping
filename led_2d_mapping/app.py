@@ -28,9 +28,9 @@ def get_available_effects() -> list[str]:
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     return templates.TemplateResponse(
-        "index.html",
-        {
-            "request": request,
+        request=request,
+        name="index.html",
+        context={
             "effects": get_available_effects(),
             "active_effect": active_effect_name,
             "has_calibration": CALIB_JSON.exists(),
