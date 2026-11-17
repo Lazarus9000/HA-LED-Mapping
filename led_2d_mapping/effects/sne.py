@@ -6,7 +6,8 @@ import colorsys
 from wledMapper import Mapper, preview
 
 
-wled = Mapper("192.168.1.172", 600,"UDP", "calibration.txt")
+#WLED address, calibration and number of LEDs come from the add-on, see wledMapper.py
+wled = Mapper.fromSettings()
 
 class Snow:
     def __init__(self, var1, var2, var3):

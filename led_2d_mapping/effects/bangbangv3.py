@@ -6,7 +6,8 @@ import colorsys
 from wledMapper import Mapper, preview
 
 
-wled = Mapper("192.168.1.172", 600,"UDP", "calibration.txt")
+#WLED address, calibration and number of LEDs come from the add-on, see wledMapper.py
+wled = Mapper.fromSettings()
 
 
 class Rocket:
@@ -23,8 +24,9 @@ class Rocket:
         
     
     def reset(self):
-        self.x = random.randrange(self.xlimit*0.25, self.xlimit-self.xlimit*0.25)
-        self.y = random.randrange(self.ylimit*0.25, self.xlimit-self.ylimit*0.25)
+        #whole numbers: newer Python versions refuse decimals in randrange
+        self.x = random.randrange(int(self.xlimit*0.25), int(self.xlimit-self.xlimit*0.25))
+        self.y = random.randrange(int(self.ylimit*0.25), int(self.xlimit-self.ylimit*0.25))
         self.scale = random.randrange(10,100)
         self.speed = random.randrange(10,100)
         self.life = 100

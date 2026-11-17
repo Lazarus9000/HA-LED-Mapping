@@ -2,4 +2,5 @@ fastapi
 uvicorn
 python-multipart
 jinja2
-numpy
+requests
+# numpy and opencv are installed with apk in the Dockerfile

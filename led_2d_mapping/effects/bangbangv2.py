@@ -8,13 +8,11 @@ import colorsys
 from wledMapper import Mapper, preview
 
 
-#Change these two variables to fit your set up
-numberOfLeds = 600
-ip = "192.168.1.172"
-
 #The UDP sending and the mapping from picture to LEDs is done by wledMapper,
-#which also handles chains of more than 490 LEDs
-wled = Mapper(ip, numberOfLeds, "UDP", "calibrationfixed.txt")
+#which also handles chains of more than 490 LEDs.
+#WLED address, calibration and number of LEDs come from the add-on, see wledMapper.py
+wled = Mapper.fromSettings()
+numberOfLeds = wled.numberOfLeds
 white = (255,255,255)
 black = (0,0,0)
 
@@ -32,8 +30,9 @@ class Rocket:
         
     
     def reset(self):
-        self.x = random.randrange(self.xlimit*0.25, self.xlimit-self.xlimit*0.25)
-        self.y = random.randrange(self.ylimit*0.25, self.xlimit-self.ylimit*0.25)
+        #whole numbers: newer Python versions refuse decimals in randrange
+        self.x = random.randrange(int(self.xlimit*0.25), int(self.xlimit-self.xlimit*0.25))
+        self.y = random.randrange(int(self.ylimit*0.25), int(self.xlimit-self.ylimit*0.25))
         self.scale = random.randrange(10,100)
         self.speed = random.randrange(10,100)
         self.life = 100

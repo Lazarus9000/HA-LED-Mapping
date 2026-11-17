@@ -5,7 +5,8 @@ left to right, and this repeats. With a good calibration both look like one
 straight line moving across the chain. LEDs that light up away from the line are
 mapped to the wrong place.
 
-    python linetest.py --ip 192.168.1.172 --leds 600 --calibration calibration.txt
+    python linetest.py                    (uses the add-on settings)
+    python linetest.py --ip 192.168.1.172 --calibration calibration.txt
 
 Stop with Ctrl+C.
 """
@@ -22,9 +23,9 @@ SIZE = 400  # the line is drawn in a SIZE x SIZE picture that is mapped onto the
 
 def main():
     parser = argparse.ArgumentParser(description="Sweep a line across the LEDs to check a calibration.")
-    parser.add_argument("--ip", default="192.168.1.172", help="IP address of the WLED controller")
-    parser.add_argument("--leds", type=int, default=600, help="number of LEDs on the chain")
-    parser.add_argument("--calibration", default="calibration.txt", help="calibration file to test")
+    parser.add_argument("--ip", help="IP address of the WLED controller (default: the add-on setting)")
+    parser.add_argument("--leds", type=int, help="number of LEDs on the chain (default: all in the calibration)")
+    parser.add_argument("--calibration", help="calibration file to test (default: the uploaded one)")
     parser.add_argument("--seconds", type=float, default=4.0, help="duration of one pass (default 4)")
     parser.add_argument("--width", type=float, default=6.0,
                         help="thickness of the line in percent of the picture (default 6)")
@@ -34,10 +35,7 @@ def main():
     parser.add_argument("--no-preview", action="store_true", help="no window (the default)")
     args = parser.parse_args()
 
-    wled = Mapper(args.ip, args.leds, "UDP", args.calibration)
-    if len(wled.normx) < args.leds:
-        parser.error("%s has %d points, fewer than --leds %d"
-                     % (args.calibration, len(wled.normx), args.leds))
+    wled = Mapper.fromSettings(ip=args.ip, calibration=args.calibration, leds=args.leds)
 
     thickness = max(1, int(round(SIZE * args.width / 100)))
     # the line starts and ends just outside the picture, so it enters and leaves cleanly
@@ -64,7 +62,6 @@ def main():
     except KeyboardInterrupt:
         pass
     finally:
-        wled.allColor(wled.black, args.leds)
         wled.release()
 
 

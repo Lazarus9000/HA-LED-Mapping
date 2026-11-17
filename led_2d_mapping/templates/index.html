@@ -52,6 +52,14 @@
     }
     .badge-on { color: #49c46b; font-weight: 600; }
     .badge-off { color: var(--muted); font-weight: 600; }
+    .badge-err { color: #ff6b6b; font-weight: 600; }
+    .hint { color: var(--muted); font-size: 12px; margin-top: 8px; }
+    pre.output {
+      margin: 10px 0 0; padding: 8px 10px; max-height: 180px; overflow: auto;
+      background: #0f1114; border: 1px solid var(--line); border-radius: 6px;
+      font: 12px/1.4 ui-monospace, Consolas, monospace; white-space: pre-wrap; color: var(--muted);
+    }
+    pre.output:empty { display: none; }
     .preview-wrap { margin-top: 12px; text-align: center; }
     .preview-wrap img { max-width: 100%; max-height: 220px; border-radius: 6px; border: 1px solid var(--line); }
   </style>
@@ -86,6 +94,8 @@
             <span class="badge-off">Stopped</span>
           {% endif %}
         </div>
+        <pre class="output" id="effectOutput"></pre>
+        <div class="hint">Sending to WLED at {{ wled_address }} (set in the add-on configuration)</div>
       </div>
 
       <div class="card">
@@ -118,25 +128,53 @@
   </div>
 
   <script>
+    function setStatus(cls, text) {
+      const box = document.getElementById("effectStatus");
+      box.textContent = "Status: ";
+      const badge = document.createElement("span");
+      badge.className = cls;
+      badge.textContent = text;
+      box.appendChild(badge);
+    }
+
+    // Shows whether the effect really runs, and what it printed (e.g. why it stopped)
+    async function refreshStatus() {
+      try {
+        const res = await fetch("api/effect/status");
+        if (!res.ok) return;
+        const s = await res.json();
+        if (s.running) setStatus("badge-on", `Running (${s.effect})`);
+        else if (s.effect && s.exit_code) setStatus("badge-err", `${s.effect} stopped with an error`);
+        else setStatus("badge-off", "Stopped");
+        const out = document.getElementById("effectOutput");
+        const atBottom = out.scrollTop + out.clientHeight >= out.scrollHeight - 4;
+        out.textContent = s.output.join("\n");
+        if (atBottom) out.scrollTop = out.scrollHeight;
+      } catch (err) { /* add-on restarting, try again on the next round */ }
+    }
+
     async function startEffect() {
       const effect = document.getElementById("effectSelect").value;
       if (!effect) return;
       const formData = new FormData();
       formData.append("effect", effect);
       const res = await fetch("api/effect/start", { method: "POST", body: formData });
-      if (res.ok) {
-        document.getElementById("effectStatus").innerHTML =
-          `Status: <span class="badge-on">Running (${effect})</span>`;
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setStatus("badge-err", data.error || "Could not start the effect");
+        return;
       }
+      setStatus("badge-on", `Running (${effect})`);
+      setTimeout(refreshStatus, 1500);
     }
 
     async function stopEffect() {
       const res = await fetch("api/effect/stop", { method: "POST" });
-      if (res.ok) {
-        document.getElementById("effectStatus").innerHTML =
-          `Status: <span class="badge-off">Stopped</span>`;
-      }
+      if (res.ok) refreshStatus();
     }
+
+    refreshStatus();
+    setInterval(refreshStatus, 3000);
 
     async function uploadCalibration(e) {
       e.preventDefault();

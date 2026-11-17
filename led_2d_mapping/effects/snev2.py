@@ -11,7 +11,8 @@ cv2.setNumThreads(1)
 #Snow like sne.py, but with more and smaller snowballs
 #Add --preview to see the picture in a window
 
-wled = Mapper("192.168.1.172", 600, "UDP", "calibration.txt")
+#WLED address, calibration and number of LEDs come from the add-on, see wledMapper.py
+wled = Mapper.fromSettings()
 
 #Change these to taste
 numberOfSnowballs = 30
