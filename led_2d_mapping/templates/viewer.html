@@ -245,7 +245,7 @@ function parseCalibration(text, name) {
   const trimmed = text.trim();
   if (trimmed.startsWith("{")) {
     const data = JSON.parse(trimmed);
-    if (!Array.isArray(data.points)) throw new Error("this JSON file has no "points" list");
+    if (!Array.isArray(data.points)) throw new Error("this JSON file has no \"points\" list");
     const pts = data.points.map((p, i) => {
       if (typeof p.x !== "number" || typeof p.y !== "number" || !isFinite(p.x) || !isFinite(p.y))
         throw new Error("point " + i + " has no numeric x and y");
@@ -259,12 +259,11 @@ function parseCalibration(text, name) {
     return { pts, meta, viewer: data.viewer || {}, isJson: true };
   }
   const pts = [];
-  trimmed.split(/?
-/).forEach((line, i) => {
+  trimmed.split(/\r?\n/).forEach((line, i) => {
     if (!line.trim()) return;
-    const parts = line.split(/[,;	]/).map(s => parseFloat(s));
+    const parts = line.split(/[,;\t]/).map(s => parseFloat(s));
     if (parts.length < 2 || !isFinite(parts[0]) || !isFinite(parts[1]))
-      throw new Error("line " + (i + 1) + " is not "x,y": " + line.slice(0, 40));
+      throw new Error("line " + (i + 1) + " is not \"x,y\": " + line.slice(0, 40));
     pts.push({ x: parts[0], y: parts[1], mx: null, my: null, force: false, src: { x: parts[0], y: parts[1] } });
   });
   return { pts, meta: {}, viewer: {}, isJson: false };
