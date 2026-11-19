@@ -20,6 +20,7 @@ import os
 import signal
 import socket
 import sys
+import time
 import numpy as np
 import requests
 
@@ -49,6 +50,35 @@ DEFAULT_CALIBRATION = "calibration.txt"
 def countLeds(filename):
     with open(filename, 'r') as f:
         return sum(1 for line in f if line.strip())
+
+
+#Overall brightness set from Home Assistant (0-255), on top of the effect's own brightness.
+#The add-on writes it to the file named in LED_BRIGHTNESS_FILE; it is read again at most
+#twice a second, so a change shows without restarting the effect
+class _MasterBrightness:
+    def __init__(self, path):
+        self.path = path
+        self.value = 255
+        self.checked = 0.0
+        self.mtime = None
+
+    def get(self):
+        if not self.path:
+            return 255
+        now = time.monotonic()
+        if now - self.checked >= 0.5:
+            self.checked = now
+            try:
+                mtime = os.path.getmtime(self.path)
+                if mtime != self.mtime:
+                    self.mtime = mtime
+                    with open(self.path) as f:
+                        self.value = max(0, min(255, int(float(f.read().strip()))))
+            except (OSError, ValueError):
+                pass
+        return self.value
+
+masterBrightness = _MasterBrightness(os.environ.get("LED_BRIGHTNESS_FILE"))
 
 
 #Turn SIGTERM (what the add-on sends to stop an effect) into a normal exit, so the
@@ -198,6 +228,10 @@ class Mapper:
                 print("Could not reach WLED to end realtime mode - restart it or send {\"live\":false} to /json/state", flush=True)
 
     def colors(self, colors):
+        master = masterBrightness.get()
+        if master < 255:
+            colors = (np.asarray(colors, dtype=np.float32).reshape(-1, 3) * (master / 255)).astype(np.uint8)
+
         if self.protocol == "JSON":
             r = requests.post('http://' + self.ip + '/json/state', json={"seg":{"i":np.asarray(colors).tolist()}})
 

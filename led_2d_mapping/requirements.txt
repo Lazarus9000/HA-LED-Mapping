@@ -3,4 +3,5 @@ uvicorn
 python-multipart
 jinja2
 requests
+paho-mqtt>=2.0
 # numpy and opencv are installed with apk in the Dockerfile
