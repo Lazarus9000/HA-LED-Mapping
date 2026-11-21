@@ -131,7 +131,7 @@ class Mapper:
         self.numberOfLeds = Leds
         self.protocol = newprotocol
 
-        if self.protocol == "UDP":
+        if self.protocol in ("UDP", "DDP"):
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
         #Hand the LEDs back to WLED whenever the effect ends
@@ -158,9 +158,11 @@ class Mapper:
         if leds > available:
             sys.exit("The calibration %s has %d points, fewer than the %d LEDs asked for"
                      % (calibration, available, leds))
-        mapper = cls(ip, leds, "UDP", calibration)
+        #DDP: WLED draws once per picture, after all its data has arrived. With the two
+        #packets of the UDP protocol it draws after each one, which gave flicker
+        mapper = cls(ip, leds, "DDP", calibration)
         mapper.WLED_PORT = port
-        print("Sending %d LEDs to WLED at %s:%d" % (leds, ip, port), flush=True)
+        print("Sending %d LEDs to WLED at %s (DDP)" % (leds, ip), flush=True)
         return mapper
 
     #Utility function to normalize array
@@ -215,9 +217,12 @@ class Mapper:
         if self.released:
             return
         self.released = True
-        if self.protocol == "UDP":
+        if self.protocol in ("UDP", "DDP"):
             try:
-                self.sendUdp([self.black] * self.numberOfLeds, 1)
+                if self.protocol == "DDP":
+                    self.sendDdp([self.black] * self.numberOfLeds)
+                else:
+                    self.sendUdp([self.black] * self.numberOfLeds, 1)
             except OSError:
                 pass
             #WLED ignores a shorter timeout once "no timeout" has been set, so ask it
@@ -238,9 +243,29 @@ class Mapper:
         if self.protocol == "UDP":
             self.sendUdp(colors, 255)
 
+        if self.protocol == "DDP":
+            self.sendDdp(colors)
+
     #Send colors (BGR order, as in OpenCV images) as WLED realtime UDP
     #Up to 490 LEDs fit in one DRGB packet. Longer chains are split over several DNRGB
     #packets, which carry the index of their first LED and hold 489 LEDs each
+    #Send colors (BGR order, as in OpenCV images) with DDP, http://www.3waylabs.com/ddp/
+    #Up to 480 LEDs per packet. Only the last packet of a picture has the "push" flag, and
+    #WLED draws the LEDs when that one arrives, so once per picture
+    DDP_PORT = 4048
+    ddpSequence = 0
+
+    def sendDdp(self, colors):
+        rgb = np.asarray(colors, dtype=np.uint8).reshape(-1, 3)[:, ::-1].tobytes()
+        self.ddpSequence = self.ddpSequence % 15 + 1
+        for offset in range(0, len(rgb), 1440):
+            chunk = rgb[offset:offset + 1440]
+            last = offset + 1440 >= len(rgb)
+            #flags (version 1, push on the last packet), sequence, data type (8 bit RGB),
+            #destination (the display), byte offset, data length
+            header = bytes([0x40 | (0x01 if last else 0x00), self.ddpSequence, 0x0B, 0x01])                 + offset.to_bytes(4, "big") + len(chunk).to_bytes(2, "big")
+            self.sock.sendto(header + chunk, (self.ip, self.DDP_PORT))
+
     def sendUdp(self, colors, timeout):
         #One row per LED, turned from blue-green-red into the red-green-blue WLED expects
         rgb = np.asarray(colors, dtype=np.uint8).reshape(-1, 3)[:, ::-1]
